@@ -1,0 +1,102 @@
+    '''
+    if step == 1:
+        linearVelocity,angularVelocity,forwalk = GoTo(300)
+    elif step == 2:
+        linearVelocity,angularVelocity = calibratewalk(300,forwalk)
+    elif step == 3 :
+        linearVelocity,angularVelocity,forcal = TurnTo(-1210)
+    elif step == 4 :
+        linearVelocity,angularVelocity = calibrate(-1210,forcal)
+    elif step == 5:
+        linearVelocity,angularVelocity,forwalk = GoTo(250)
+    elif step == 6:
+        linearVelocity,angularVelocity = calibratewalk(250,forwalk)
+    elif step == 7 :
+        linearVelocity,angularVelocity,forcal = TurnTo(270)    
+    elif step == 8 :
+        linearVelocity,angularVelocity = calibrate(270,forcal)
+    elif step == 9:
+        linearVelocity,angularVelocity,forwalk = GoTo(50)
+    elif step == 10:
+        linearVelocity,angularVelocity = calibratewalk(50,forwalk)
+    elif step == 11 :
+        linearVelocity,angularVelocity,forcal = TurnTo(-450)
+    elif step == 12 :
+        linearVelocity,angularVelocity = calibrate(-450,forcal)
+    elif step == 13:
+        linearVelocity,angularVelocity,forwalk = GoTo(50)
+    elif step == 14:
+        linearVelocity,angularVelocity = calibratewalk(50,forwalk)
+    elif step == 15 :
+        linearVelocity,angularVelocity,forcal = TurnTo(-650)    
+    elif step == 16 :
+        linearVelocity,angularVelocity = calibrate(-650,forcal)
+    elif step == 17:
+        linearVelocity,angularVelocity,forwalk = GoTo(100)
+    elif step == 18:
+        linearVelocity,angularVelocity = calibratewalk(100,forwalk)
+    elif step == 19 :
+        linearVelocity,angularVelocity,forcal = TurnTo(850)
+    elif step == 20 :
+        linearVelocity,angularVelocity = calibrate(850,forcal)
+    elif step == 21:
+        linearVelocity,angularVelocity,forwalk = GoTo(100)
+    elif step == 22:
+        linearVelocity,angularVelocity = calibratewalk(100,forwalk)    
+    elif step == 23 :
+        linearVelocity,angularVelocity,forcal = TurnTo(-500)    
+    elif step == 24 :
+        linearVelocity,angularVelocity = calibrate(-500,forcal)    
+    elif step == 25:
+        linearVelocity,angularVelocity,forwalk = GoTo(120)
+    elif step == 26:
+        linearVelocity,angularVelocity = calibratewalk(120,forwalk)     
+    else :
+        linearVelocity = 0.0 #m/s
+        angularVelocity = 0.0
+    return linearVelocity,angularVelocity
+    '''
+    '''
+    if step == 1:
+        linearVelocity,angularVelocity = GoTo(300)
+    elif step == 2 :
+        linearVelocity,angularVelocity,forcal = TurnTo(-1210)
+    elif step == 3 :
+        linearVelocity,angularVelocity = calibrate(-1210,forcal)
+    elif step == 4:
+        linearVelocity,angularVelocity = GoTo(250)
+    elif step == 5 :
+        linearVelocity,angularVelocity,forcal = TurnTo(270)    
+    elif step == 6 :
+        linearVelocity,angularVelocity = calibrate(270,forcal)
+    elif step == 7:
+        linearVelocity,angularVelocity = GoTo(50)
+    elif step == 8 :
+        linearVelocity,angularVelocity,forcal = TurnTo(-450)
+    elif step == 9 :
+        linearVelocity,angularVelocity = calibrate(-450,forcal)
+    elif step == 10:
+        linearVelocity,angularVelocity = GoTo(50)
+    elif step == 11 :
+        linearVelocity,angularVelocity,forcal = TurnTo(-650)    
+    elif step == 12 :
+        linearVelocity,angularVelocity = calibrate(-650,forcal)
+    elif step == 13:
+        linearVelocity,angularVelocity = GoTo(100)
+    elif step == 14 :
+        linearVelocity,angularVelocity,forcal = TurnTo(850)
+    elif step == 15 :
+        linearVelocity,angularVelocity = calibrate(850,forcal)
+    elif step == 16:
+        linearVelocity,angularVelocity = GoTo(100)
+    elif step == 17 :
+        linearVelocity,angularVelocity,forcal = TurnTo(-500)    
+    elif step == 18 :
+        linearVelocity,angularVelocity = calibrate(-500,forcal)
+    elif step == 19:
+        linearVelocity,angularVelocity = GoTo(120)
+    else :
+        linearVelocity = 0.0 #m/s
+        angularVelocity = 0.0
+    return linearVelocity,angularVelocity 
+    '''

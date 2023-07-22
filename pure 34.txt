@@ -1,0 +1,33 @@
+
+    if step == 1:
+        linearVelocity,angularVelocity = GoTo(300)
+    elif step == 2:
+        linearVelocity,angularVelocity = TurnTo(-1210)
+    elif step == 3 :
+        linearVelocity,angularVelocity = GoTo(250)
+    elif step == 4 :
+        linearVelocity,angularVelocity = TurnTo(270)
+    elif step == 5:
+        linearVelocity,angularVelocity = GoTo(50)
+    elif step == 6:
+        linearVelocity,angularVelocity = TurnTo(-450)
+    elif step == 7 :
+        linearVelocity,angularVelocity = GoTo(50)
+    elif step == 8 :
+        linearVelocity,angularVelocity = TurnTo(-650)
+    elif step == 9:
+        linearVelocity,angularVelocity = GoTo(100)
+    elif step == 10:
+        linearVelocity,angularVelocity = TurnTo(850)
+    elif step == 11 :
+        linearVelocity,angularVelocity = GoTo(100)
+    elif step == 12 :
+        linearVelocity,angularVelocity = TurnTo(-500)
+    elif step == 13 :
+        linearVelocity,angularVelocity = GoTo(120)    
+    else :
+        linearVelocity = 0.0 #m/s
+        angularVelocity = 0.0
+    return linearVelocity,angularVelocity
+    
+    

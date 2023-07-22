@@ -1,0 +1,1170 @@
+# Author : Khantaphon Chaiyo & 
+import math
+import random
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
+
+from sensor_msgs.msg import LaserScan, BatteryState
+from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+#from std_msgs.msg import String
+turncase = ''
+startdegree = 0.0
+b4dif = 0.0
+bount = 0
+step = 1 
+deltaturn = 0.0
+totalturn = 0.0
+previousturn = 0.0
+previousx = 0.0
+previousy = 0.0
+totaldistance = 0.0
+deltadistance = 0.0
+goaldistance = 0.0
+count = 0
+direction = 0
+forcal = 0.0
+forwalk = 0.0
+turninterval = 0
+stop = False
+ob1 = []
+ob2 = []
+ob3 = []
+ob4 = []
+obstacle = [0,0,0,0] # front,left,back,right
+class Turtlebot3Controller(Node):
+    
+    global destination
+    global kp
+    global turncase
+    
+    def __init__(self):
+        super().__init__('turtlebot3_controller')   #node name
+        self.cmdVelPublisher = self.create_publisher(Twist, 'cmd_vel', 1)
+        self.scanSubscriber = self.create_subscription(LaserScan, 'scan', self.scanCallback, qos_profile=qos_profile_sensor_data)
+        self.batteryStateSubscriber = self.create_subscription(BatteryState, 'battery_state', self.batteryStateCallback, 1)
+        self.odomSubscriber = self.create_subscription(Odometry, 'odom', self.odomCallback, 1)
+        self.valueLaserRaw = {
+            'range_min':0.0,
+            'range_max':0.0,
+            'ranges':[0.0]*360,
+        }
+        self.valueBatteryState = None
+        self.valueOdometry = {
+            'position':None,        #Datatype: geometry_msg/Point   (x,y,z)
+            'positionX':0.0,
+            'positionY':0.0,
+            'positionZ':0.0,
+            'orientation':None,     #Datatype: geometry_msg/Quaternion (x,y,z,w)
+            'orientationX':0.0,
+            'orientationY':0.0,
+            'orientationZ':0.0,
+            'orientationW':0.0,
+            'linearVelocity':None,  #Datatype: geometry_msg/Vector3 (x,y,z)
+            'XlinearVelocity':0.0,
+            'YlinearVelocity':0.0,
+            'ZlinearVelocity':0.0,
+            'angularVelocity':None, #Datatype: geometry_msg/Vector3 (x,y,z)
+        }
+
+        #Use this timer for the job that should be looping until interrupted
+        self.timer = self.create_timer(0.1,self.timerCallback)
+
+    def publishVelocityCommand(self, linearVelocity, angularVelocity):
+        msg = Twist()
+        msg.linear.x = linearVelocity
+        msg.angular.z = angularVelocity
+        self.cmdVelPublisher.publish(msg)
+        #self.get_logger().info('Publishing cmd_vel: "%s", "%s"' % linearVelocity, angularVelocity)
+
+    def scanCallback(self, msg):
+        self.valueLaserRaw = {
+            'range_min':msg.range_min,
+            'range_max':msg.range_max,
+            'ranges':list(msg.ranges),
+        }
+
+    def batteryStateCallback(self, msg):
+        self.valueBatteryState = msg
+
+    def odomCallback(self, msg):
+        self.valueOdometry = {
+            'position':msg.pose.pose.position,
+            'positionX':msg.pose.pose.position.x,
+            'positionY':msg.pose.pose.position.y,
+            'positionZ':msg.pose.pose.position.z,
+            'orientation':msg.pose.pose.orientation,
+            'orientationX':msg.pose.pose.orientation.x,
+            'orientationY':msg.pose.pose.orientation.y,
+            'orientationZ':msg.pose.pose.orientation.z,
+            'orientationW':msg.pose.pose.orientation.w,
+            'linearVelocity':msg.twist.twist.linear,
+            'XlinearVelocity':msg.twist.twist.linear.x,
+            'YlinearVelocity':msg.twist.twist.linear.y,
+            'ZlinearVelocity':msg.twist.twist.linear.z,
+            'angularVelocity':msg.twist.twist.angular,
+        }
+    def timerCallback(self):
+        #print(self.valueLaserRaw["ranges"][-180])
+        global lidar_degree
+        global lidar_degree1
+        global lidar_degree2
+        global lidar_degree3
+        global lidar_degree4
+        lidar_degree=[]
+        lidar_degree1=[]
+        lidar_degree2=[]
+        lidar_degree3=[]
+        lidar_degree4=[]
+        global average1
+        global average2
+        global average3
+        global average4
+        average1 = []
+        average2 = []
+        average3 = []
+        average4 = []
+        global av1 
+        global av2 
+        global av3 
+        global av4
+        global avall 
+        for x in range (0,360):
+            lidar_degree.append(self.valueLaserRaw["ranges"][x])
+            if x >= 0 and x <= 45 or x >= 316 and x <= 359 :
+                lidar_degree1.append(self.valueLaserRaw["ranges"][x]) 
+                if x == 0 :
+                    average1.append(70*self.valueLaserRaw["ranges"][x])
+                elif x >= 1 and x <= 10 or x >= 350 and x <= 359 :
+                    average1.append(5*self.valueLaserRaw["ranges"][x])
+                # elif x >= 11 and x <= 25 or x >= 335 and x <= 349 :
+                #     average1.append(2*self.valueLaserRaw["ranges"][x])
+                # elif x >= 26 and x <= 45 or x >= 315 and x <= 334 :
+                #     average1.append(0.5*self.valueLaserRaw["ranges"][x])
+            elif x >= 46 and x <= 135 :
+                lidar_degree2.append(self.valueLaserRaw["ranges"][x])    
+                if x == 90 :
+                    average2.append(70*self.valueLaserRaw["ranges"][x])
+                # elif x >= 46 and x <= 64 or x >= 116 and x <= 135 :
+                #     average2.append(0.5*self.valueLaserRaw["ranges"][x])
+                # elif x >= 65 and x <= 79 or x >= 101 and x <= 115 :
+                #     average2.append(2*self.valueLaserRaw["ranges"][x])
+                elif x >= 80 and x <= 89 or x >= 91 and x <= 100 :
+                    average2.append(5*self.valueLaserRaw["ranges"][x])
+            elif x >= 136 and x <= 225 :
+                lidar_degree3.append(self.valueLaserRaw["ranges"][x])    
+                if x == 180 :
+                    average3.append(70*self.valueLaserRaw["ranges"][x])
+                # elif x >= 136 and x <= 154 or x >= 206 and x <= 225 :
+                #     average3.append(0.5*self.valueLaserRaw["ranges"][x])
+                # elif x >= 155 and x <= 169 or x >= 191  and x <= 205 :
+                #     average3.append(2*self.valueLaserRaw["ranges"][x])
+                elif x >= 170 and x <= 179 or x >= 181 and x <= 190 :
+                    average3.append(5*self.valueLaserRaw["ranges"][x])
+            elif x >= 226 and x <= 315 :
+                lidar_degree4.append(self.valueLaserRaw["ranges"][x])    
+                if x == 270 :
+                    average4.append(70*self.valueLaserRaw["ranges"][x])
+                # elif x >= 226 and x <= 245 or x >= 296 and x <= 315 :
+                #     average4.append(0.5*self.valueLaserRaw["ranges"][x])
+                # elif x >= 246 and x <= 260 or x >= 281 and x <= 295 :
+                #     average4.append(2*self.valueLaserRaw["ranges"][x])
+                elif x >= 261 and x <= 269 or x >= 271 and x <= 280 :
+                    average4.append(5*self.valueLaserRaw["ranges"][x])
+        else:
+            pass    
+        av1 = sum(average1)/170
+        av2 = sum(average2)/170
+        av3 = sum(average3)/170
+        av4 = sum(average4)/170
+        avall = [av1 ,av2 ,av3 ,av4]
+        #lidar_degree[]=self.valueLaserRaw["ranges"][-180]
+        #read sensors values
+        #print(self.valueBatteryState)
+        #print(self.valueLaserRaw)
+        #print(self.valueOdometry)
+
+        #calculate command movement
+        #linearVelocity = 0.0 #m/s
+        #angularVelocity = 0.00 #rad/s
+        global recentx
+        global recenty
+        global theta
+       
+        recentx = self.valueOdometry['positionX']
+        recenty = self.valueOdometry['positionY']
+
+        siny_cosp =  2 * ((self.valueOdometry["orientationW"]*self.valueOdometry["orientationZ"]) + (self.valueOdometry["orientationX"]*self.valueOdometry["orientationY"]))
+        cosy_cosp = 1 - ( 2 * ((self.valueOdometry["orientationY"]*self.valueOdometry["orientationY"]) + (self.valueOdometry["orientationZ"]*self.valueOdometry["orientationZ"])))
+        theta = math.atan2(siny_cosp,cosy_cosp)
+        #print(theta)
+
+        linearVelocity,angularVelocity = robotloop()
+        self.publishVelocityCommand(linearVelocity,angularVelocity)
+        
+
+def remap(num, in_min, in_max, out_min, out_max):
+    return (num - in_min)*(out_max - out_min) / (in_max - in_min) + out_min
+
+def updatestep():
+    global step
+    step = step + 1
+    return step
+
+def GoTo(centimeter):
+    global direction
+    global previousx
+    global previousy
+    global totaldistance
+    global deltadistance
+    global goaldistance 
+    global count
+    goaldistance = centimeter/100
+    if centimeter >= 0:
+        direction = 1
+        while totaldistance < goaldistance :    
+            deltadistance = math.sqrt(((recentx-previousx)*(recentx-previousx))+((recenty-previousy)*(recenty-previousy)))  
+            #print('deltadistane = ',deltadistance)
+            #print('recentx = ',recentx)
+            #print('recenty = ',recenty)
+            #print('previousx = ',previousx)
+            #print('previousy = ',previousy)
+            totaldistance = totaldistance + deltadistance
+            previousx = recentx
+            previousy = recenty
+            #print(totaldistance)
+
+            if(deltadistance==0.0) and count != 1:
+                count = 1
+            else:
+                pass
+
+            if count == 1:
+                linearVelocity = direction * 0.1 #m/s
+                angularVelocity = 0.0
+
+
+            else:
+                totaldistance = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0
+
+            return linearVelocity,angularVelocity#,0
+        else:
+            print("walkreach")
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            count = 0
+            direction = 0
+            updatestep()
+        passwalk = goaldistance - totaldistance
+        totaldistance = 0.0    
+        return linearVelocity,angularVelocity#,passwalk
+    else:
+        direction = -1
+        while totaldistance > goaldistance :    
+            deltadistance = math.sqrt(((recentx-previousx)*(recentx-previousx))+((recenty-previousy)*(recenty-previousy)))  
+            #print('deltadistane = ',deltadistance)
+            #print('recentx = ',recentx)
+            #print('recenty = ',recenty)
+            #print('previousx = ',previousx)
+            #print('previousy = ',previousy)
+            totaldistance = totaldistance - deltadistance
+            previousx = recentx
+            previousy = recenty
+            #print(totaldistance)
+
+            if(deltadistance==0.0) and count != 1:
+                count = 1
+            else:
+                pass
+
+            if count == 1:
+                linearVelocity = direction * 0.1 #m/s
+                angularVelocity = 0.0
+
+            else:
+                totaldistance = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0
+
+            return linearVelocity,angularVelocity#,0
+        else:
+            print("walkreach")
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            count = 0
+            direction = 0
+            updatestep()
+        passwalk = goaldistance - totaldistance
+        totaldistance = 0.0    
+        return linearVelocity,angularVelocity#,passwalk
+
+def calibratewalk(centimeters,forwalk):
+    global direction
+    global previousx
+    global previousy
+    global totaldistance
+    global deltadistance
+    global goaldistance 
+    global count
+    centimeters = centimeters/100
+    goaldistance = forwalk
+    #print(forwalk)
+    if centimeters >= 0:
+        direction = -1
+        while goaldistance - totaldistance <= -0.001 :    
+            deltadistance = math.sqrt(((recentx-previousx)*(recentx-previousx))+((recenty-previousy)*(recenty-previousy)))  
+            #print('deltadistane = ',deltadistance)
+            #print('recentx = ',recentx)
+            #print('recenty = ',recenty)
+            #print('previousx = ',previousx)
+            #print('previousy = ',previousy)
+            totaldistance = totaldistance - deltadistance
+            previousx = recentx
+            previousy = recenty
+            #print(goaldistance-totaldistance)
+
+            if(deltadistance==0.0) and count != 1:
+                count = 1
+            else:
+                pass
+
+            if count == 1:
+                linearVelocity = direction * 0.01 #m/s
+                angularVelocity = 0.0
+
+
+            else:
+                totaldistance = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0
+
+            return linearVelocity,angularVelocity
+        else:
+            print("calibrate walkreach")
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            count = 0
+            direction = 0
+            updatestep()
+        totaldistance = 0.0    
+        return linearVelocity,angularVelocity
+    else:
+        direction = 1
+        while goaldistance - totaldistance >= 0.001  :    
+            deltadistance = math.sqrt(((recentx-previousx)*(recentx-previousx))+((recenty-previousy)*(recenty-previousy)))  
+            #print('deltadistane = ',deltadistance)
+            #print('recentx = ',recentx)
+            #print('recenty = ',recenty)
+            #print('previousx = ',previousx)
+            #print('previousy = ',previousy)
+            totaldistance = totaldistance + deltadistance
+            previousx = recentx
+            previousy = recenty
+            #print(goaldistance - totaldistance)
+
+            if(deltadistance==0.0) and count != 1:
+                count = 1
+            else:
+                pass
+
+            if count == 1:
+                linearVelocity = direction * 0.01 #m/s
+                angularVelocity = 0.0
+
+            else:
+                totaldistance = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0
+
+            return linearVelocity,angularVelocity 
+        else:
+            print("calibrate walkreach")
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            count = 0
+            direction = 0
+            updatestep()
+        totaldistance = 0.0    
+        return linearVelocity,angularVelocity
+
+def TurnTo(degrees):
+    global previousturn
+    global deltaturn
+    global totalturn
+    global bount
+    global turncase
+    passcal = 0.0
+    diff = 0.0
+    fordir = 0.0
+    kp = 2
+    #destination config
+    destination = degrees
+    if destination >= 360  :
+        destination = destination % 360
+    elif destination <= -360 :
+        destination = destination % -360
+    else:
+        pass
+
+    #print(destination)
+    if destination >= 0 :
+        if destination >= 180 :
+            #print('rotateright')
+            turncase = 'right'
+            destination = 360 - destination
+        elif destination < 180 :
+             #print('rotateleft')
+            turncase = 'left'   
+    elif destination < 0 :
+        if destination >= -180 :
+            #print('rotateright')
+            turncase = 'right'
+        elif destination < -180 :
+             #print('rotateleft')
+            turncase = 'left'  
+            destination = -360 - destination
+
+    #find a solution to change orient.z to degree then boom finish
+    if degrees >= 0 : 
+        while destination-totalturn >= 0.1 :
+            startdegree = theta
+            if startdegree >= 0.0 :
+                startdegree = remap(startdegree,0.0,3.14,0.0,180)
+            else:
+                startdegree = remap(startdegree,-3.14,-0.0,0.0,180) + 180
+            #print('after map =',startdegree)
+
+            deltaturn = abs(startdegree - previousturn)
+            if deltaturn >= 100:
+                deltaturn = abs(360-deltaturn)
+            else:
+                pass
+
+            totalturn = totalturn + deltaturn
+            previousturn = startdegree
+            #print(totalturn)
+
+            #กันerror
+            b4dif = abs(totalturn-destination) 
+            if b4dif > 180:
+                b4dif = abs(b4dif - 360) 
+            else:
+                pass
+            #print(b4dif)    
+            diff = b4dif/180
+            diff = (kp*diff)+0.4
+            diff = round(diff,1)
+
+            if(deltaturn<=0.1) and bount != 1:
+                bount = 1
+            else:
+                pass
+
+            if bount == 1:
+                if turncase == 'right':
+                    #print('rotatingright')
+                    linearVelocity = 0.0 #m/s
+                    angularVelocity = -1*diff #rad/s
+                elif turncase == 'left':
+                    #print('rotatingleft')
+                    linearVelocity = 0.0 #m/s
+                    angularVelocity = diff #rad/s  
+            else:
+                totalturn = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0        
+            return linearVelocity,angularVelocity,0
+
+        else:
+            print("turnreach")
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            passcal = destination-totalturn
+            bount = 0
+            totalturn = 0.0
+            updatestep()
+            return linearVelocity,angularVelocity,passcal
+        
+
+    else :
+        while destination-totalturn <= -0.1 :
+            startdegree = theta
+            if startdegree >= 0.0 :
+                startdegree = remap(startdegree,0.0,3.14,0.0,180)
+            else:
+                startdegree = remap(startdegree,-3.14,-0.0,0.0,180) + 180
+            #print('after map =',startdegree)
+
+            deltaturn = abs(startdegree - previousturn)
+            if deltaturn >= 100:
+                deltaturn = abs(360-deltaturn)
+            else:
+                pass
+
+            totalturn = totalturn - deltaturn
+            previousturn = startdegree
+            #print(totalturn)
+
+            #กันerror
+            b4dif = abs(totalturn-destination) 
+            if b4dif > 180:
+                b4dif = abs(b4dif - 360) 
+            else:
+                pass
+            #print(b4dif)    
+            diff = b4dif/180
+            diff = (kp*diff)+0.4
+            diff = round(diff,1)
+
+            if(deltaturn<=0.1) and bount != 1:
+                bount = 1
+            else:
+                pass
+
+            if bount == 1:
+                if turncase == 'right':
+                    #print('rotatingright')
+                    linearVelocity = 0.0 #m/s
+                    angularVelocity = -1*diff #rad/s
+                elif turncase == 'left':
+                    #print('rotatingleft')
+                    linearVelocity = 0.0 #m/s
+                    angularVelocity = diff #rad/s  
+            else:
+                totalturn = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0        
+            return linearVelocity,angularVelocity,0
+
+        else:
+            print("turnreach")
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            passcal = destination-totalturn
+            bount = 0
+            totalturn = 0.0
+            updatestep()
+            return linearVelocity,angularVelocity,passcal
+    
+def calibrate(degrees,cal):
+    global previousturn
+    global deltaturn
+    global totalturn
+    global bount
+    global turncase
+    passcal = 0.0
+    diff = 0.0
+    fordir = 0.0
+    kp = 2
+    #destination config
+    destination = degrees
+    if destination >= 360  :
+        destination = destination % 360
+    elif destination <= -360 :
+        destination = destination % -360
+    else:
+        pass
+
+    if destination >= 0 :
+        if cal >= 0 :
+            #print('rotateright')
+            turncase = 'right'
+        elif cal < 0 :
+            #print('rotateleft')
+            turncase = 'left'   
+    elif destination < 0 :
+        if cal >= 0 :
+            #print('rotateright')
+            turncase = 'left'
+        elif cal < 0 :
+             #print('rotateleft')
+            turncase = 'right'  
+    #find a solution to change orient.z to degree then boom finish
+    if cal>= 0 : 
+        while cal-totalturn >= 0.05 :
+            startdegree = theta
+            if startdegree >= 0.0 :
+                startdegree = remap(startdegree,0.0,3.14,0.0,180)
+            else:
+                startdegree = remap(startdegree,-3.14,-0.0,0.0,180) + 180
+            #print('after map =',startdegree)
+
+            deltaturn = abs(startdegree - previousturn)
+            if deltaturn >= 100:
+                deltaturn = abs(360-deltaturn)
+            else:
+                pass
+
+            totalturn = totalturn + deltaturn
+            previousturn = startdegree
+            #print(totalturn)
+
+            #กันerror
+            b4dif = abs(totalturn-destination) 
+            if b4dif > 180:
+                b4dif = abs(b4dif - 360) 
+            else:
+                pass
+            #print(b4dif)    
+            diff = 0.13 #default 1 1.25 need to june
+
+            if(deltaturn<=0.1) and bount != 1:
+                bount = 1
+            else:
+                pass
+
+            if bount == 1:
+                if turncase == 'right':
+                    #print('rotatingright')
+                    linearVelocity = 0.0 #m/s
+                    angularVelocity = -1*diff #rad/s
+                elif turncase == 'left':
+                    #print('rotatingleft')
+                    linearVelocity = 0.0 #m/s
+                    angularVelocity = diff #rad/s  
+            else:
+                totalturn = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0        
+            return linearVelocity,angularVelocity
+
+        else:
+            print("calibrate turnreach")
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            bount = 0
+            totalturn = 0.0
+            updatestep()
+            return linearVelocity,angularVelocity
+        
+
+    else :
+        while cal-totalturn <= -0.05 :
+            startdegree = theta
+            if startdegree >= 0.0 :
+                startdegree = remap(startdegree,0.0,3.14,0.0,180)
+            else:
+                startdegree = remap(startdegree,-3.14,-0.0,0.0,180) + 180
+            #print('after map =',startdegree)
+
+            deltaturn = abs(startdegree - previousturn)
+            if deltaturn >= 100:
+                deltaturn = abs(360-deltaturn)
+            else:
+                pass
+
+            totalturn = totalturn - deltaturn
+            previousturn = startdegree
+            #print(totalturn)
+
+            #กันerror
+            b4dif = abs(totalturn-destination) 
+            if b4dif > 180:
+                b4dif = abs(b4dif - 360) 
+            else:
+                pass
+            #print(b4dif)    
+            diff = 0.13 #default 1 1.25 need to june
+
+            if(deltaturn<=0.1) and bount != 1:
+                bount = 1
+            else:
+                pass
+
+            if bount == 1:
+                if turncase == 'right':
+                    #print('rotatingright')
+                    linearVelocity = 0.0 #m/s
+                    angularVelocity = -1*diff #rad/s
+                elif turncase == 'left':
+                    #print('rotatingleft')
+                    linearVelocity = 0.0 #m/s
+                    angularVelocity = diff #rad/s  
+            else:
+                totalturn = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0        
+            return linearVelocity,angularVelocity
+
+        else:
+            print("calibrate turnreach")
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            bount = 0
+            totalturn = 0.0
+            updatestep()
+            return linearVelocity,angularVelocity
+def WhatDoIsee():
+    global obstacle
+    global ob1
+    global ob2
+    global ob3
+    global ob4
+    for y in range (0,len(lidar_degree)):
+        #print(lidar_degree[y])
+        if y >= 0 and y <= 45 or y >= 316 and y <= 359 :
+            if lidar_degree[y] != 0.0 and lidar_degree[y] < 0.5 :
+
+                ob1.append(1)
+            elif lidar_degree[y] != 0.0 and lidar_degree[y] > 0.5 :
+                ob1.append(0)    
+        elif y >= 46 and y <= 135 :
+            if lidar_degree[y] != 0.0 and lidar_degree[y] < 0.5 :
+                ob2.append(1)
+            elif lidar_degree[y] != 0.0 and lidar_degree[y] > 0.5 :
+                ob2.append(0)
+        elif y >= 136 and y <= 225 :
+            if lidar_degree[y] != 0.0 and lidar_degree[y] < 0.5 :
+                ob3.append(1)
+            elif lidar_degree[y] != 0.0 and lidar_degree[y] > 0.5 :
+                ob3.append(0)
+        elif y >= 226 and y <= 315 :
+            if lidar_degree[y] != 0.0 and lidar_degree[y] < 0.5 :
+                ob4.append(1)
+            elif lidar_degree[y] != 0.0 and lidar_degree[y] > 0.5 :
+                ob4.append(0)                          
+        
+    else :
+        if any(ob1) ==  True :
+            obstacle[0] = 1
+        else :
+            obstacle[0] = 0
+        if any(ob2) ==  True :
+            obstacle[1] = 1
+        else :
+            obstacle[1] = 0
+        if any(ob3) ==  True :
+            obstacle[2] = 1
+        else :
+            obstacle[2] = 0
+        if any(ob4) ==  True :
+            obstacle[3] = 1
+        else :
+            obstacle[3] = 0
+        
+        ob1 = []
+        ob2 = []
+        ob3 = []
+        ob4 = []
+        
+        #print(obstacle)
+        return obstacle
+
+def GTNN(node):
+    global direction
+    global previousx
+    global previousy
+    global totaldistance
+    global deltadistance
+    global goaldistance 
+    global count
+    goaldistance = node*0.3
+    while totaldistance < goaldistance :    
+        deltadistance = math.sqrt(((recentx-previousx)*(recentx-previousx))+((recenty-previousy)*(recenty-previousy)))  
+        #print('deltadistane = ',deltadistance)
+        #print('recentx = ',recentx)
+        #print('recenty = ',recenty)
+        #print('previousx = ',previousx)
+        #print('previousy = ',previousy)
+        totaldistance = totaldistance + deltadistance
+        previousx = recentx
+        previousy = recenty
+        print(totaldistance)
+        if(deltadistance==0.0) and count != 1:
+            count = 1
+        else:
+            pass
+        if avall[0] != 0.0 and avall[0] < 0.2 :
+            print('Front Obstacle Found ! Can not continue !!')
+            print('Break with ',int(totaldistance/0.3),' node complete')
+            node_error = goaldistance - totaldistance
+            print(node_error,' m left to complete')
+            linearVelocity = 0.0 #m/s
+            angularVelocity = 0.0
+            
+            updatestep()
+            break
+        else :    
+            if count == 1 :
+                # sum_linearvel = 0.4
+                # sum_angularvel = 0.0
+                linearVelocity = sum_linearvel
+                angularVelocity = sum_angularvel
+            else:
+                totaldistance = 0.0
+                linearVelocity = 0.0 #m/s
+                angularVelocity = 0.0
+
+            return linearVelocity,angularVelocity#,0
+    
+    else:
+        print("GTNN complete with ",node,' node')
+        linearVelocity = 0.0 #m/s
+        angularVelocity = 0.0
+        count = 0
+        direction = 0
+        updatestep()
+
+    passwalk = goaldistance - totaldistance
+    totaldistance = 0.0    
+    return linearVelocity,angularVelocity#,passwalk
+
+def GoHome(startpose):
+    global forcal
+    global end
+    end = False
+    if startpose == 00 :  
+        if step == 1 :       
+            linearVelocity,angularVelocity,forcal = TurnTo(90)    
+        # elif step == 2 :
+        #     linearVelocity,angularVelocity = calibrate(90,forcal)
+        elif step == 2 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 3 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 5 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 4 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 5 :
+            end = True
+            linearVelocity = 0.0
+            angularVelocity = 0.0
+    elif startpose == 20 :
+        if step == 1 :
+            linearVelocity,angularVelocity,forcal = TurnTo(85)    
+        # elif step == 2 :
+        #     linearVelocity,angularVelocity = calibrate(90,forcal)
+        elif step == 2 :
+            linearVelocity,angularVelocity = GTNN(2.05)
+        elif step == 3 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 5 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)   
+        elif step == 4 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 5 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 8 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 6 :
+            linearVelocity,angularVelocity = GTNN(1.3)
+        elif step == 7 :
+            end = True
+            linearVelocity = 0.0
+            angularVelocity = 0.0
+    elif startpose == 40 :
+        if step == 1 :
+            linearVelocity,angularVelocity = GTNN(4.2)
+        elif step == 2 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 3 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)   
+        elif step == 3 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 4 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 6 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 5 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 6 :
+            end = True
+            linearVelocity = 0.0
+            angularVelocity = 0.0
+    elif startpose == 2 :
+        if step == 1 :
+            linearVelocity,angularVelocity = GTNN(1.9)
+        elif step == 2 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-80)    
+        # elif step == 3 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 3 :
+            linearVelocity,angularVelocity = GTNN(2)    
+        elif step == 4 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 6 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 5 :
+            linearVelocity,angularVelocity = GTNN(2.2)
+        elif step == 6 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 9 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)   
+        elif step == 7 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 8 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-80)    
+        # elif step == 12 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 9 :
+            linearVelocity,angularVelocity = GTNN(1.4)
+        elif step == 10 :
+            end = True
+            linearVelocity = 0.0
+            angularVelocity = 0.0    
+    elif startpose == 22 :
+        if step == 1 :
+            linearVelocity,angularVelocity = GTNN(2)    
+        elif step == 2 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 3 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 3 :
+            linearVelocity,angularVelocity = GTNN(2.2)
+        elif step == 4 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 6 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)   
+        elif step == 5 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 6 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 9 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 7 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 8 :
+            end = True
+            linearVelocity = 0.0
+            angularVelocity = 0.0 
+    elif startpose == 42 :
+        if step == 1 :
+            linearVelocity,angularVelocity = GTNN(2)
+        elif step == 2 :
+            linearVelocity,angularVelocity,forcal = TurnTo(80)    
+        # elif step == 3 :
+        #     linearVelocity,angularVelocity = calibrate(90,forcal)
+        elif step == 3 :
+            linearVelocity,angularVelocity = GTNN(2)    
+        elif step == 4 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 6 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 5 :
+            linearVelocity,angularVelocity = GTNN(2.2)
+        elif step == 6 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 9 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)   
+        elif step == 7 :
+            linearVelocity,angularVelocity = GTNN(1.05)
+        elif step == 8 :
+            linearVelocity,angularVelocity,forcal = TurnTo(-90)    
+        # elif step == 12 :
+        #     linearVelocity,angularVelocity = calibrate(-90,forcal)
+        elif step == 9 :
+            linearVelocity,angularVelocity = GTNN(1.2)
+        elif step == 10 :
+            end = True
+            linearVelocity = 0.0
+            angularVelocity = 0.0    
+    else :
+        print('No data')        
+        end = True
+        linearVelocity = 0.0
+        angularVelocity = 0.0 
+
+    return linearVelocity,angularVelocity,end
+
+def robotloop():
+    global forcal
+    global forwalk
+    global step
+    global turninterval
+    global stop
+    global forob
+    global sum_angularvel
+    global sum_linearvel
+    listdirection = [-1 ,1]
+    Far1 = 0.0
+    Near1 = 0.0
+    Far2 = 0.0
+    Near2 = 0.0
+
+    #WhatDoIsee()
+    forob = WhatDoIsee()
+    if forob[0] == 0 :
+        avall[0] = 0
+    if forob[1] == 0 :
+        avall[1] = 0
+    if forob[2] == 0 :
+        avall[2] = 0
+    if forob[3] == 0 :
+        avall[3] = 0
+    #print(forob)
+    # print(avall)
+    # print(avall[0])
+
+    
+    if lidar_degree[90] != 0 and lidar_degree[270] >= 0.25 :
+        if avall[1] >= 0.5 :
+            avall[1] = 0.5
+
+        Far1 = (0.5 - avall[1]) / ( 0.5- 0.0)
+        Near1 = (avall[1] - 0.0) / (0.5 - 0.0)
+
+
+        # rule1Move = Far1 * 0.2
+        # rule1Turn = Far1 * 0
+
+        # rule2Move = Near1 * 0.1
+        # rule2Turn = Near1 * 0
+
+        # rule3Move = Far1 * 0.0
+        # rule3Turn = Far1 * -0.2
+
+        # rule4Move = Near1 * 0.0
+        # rule4Turn = Near1 * 0.2
+
+        rule1Move = Near1 * 0.05
+        rule1Turn = Near1 * 0.05
+
+        rule2Move = Far1 * 0.05
+        rule2Turn = Far1 * -0.05
+
+        rule3Move = Near1 * 0.1
+        rule3Turn = Near1 * 0
+
+        rule4Move = Far1 *0.2
+        rule4Turn = Far1 * 0
+
+        sum_linearvel = rule1Move + rule2Move +rule3Move + rule4Move
+        sum_angularvel = rule1Turn + rule2Turn + rule3Turn + rule4Turn
+        # print('sum linear = ',sum_linearvel,'sum angular = ',sum_angularvel)
+    elif lidar_degree[90] >= 0.25 and lidar_degree[270] != 0 :
+        if avall[3] >= 0.5 :
+            avall[3] = 0.5
+
+        Far2 = (0.5 - avall[3]) / (0.5 -0.0)
+        Near2 = (avall[3] - 0.0) / (0.5 -0.0)
+
+
+        # rule1Move = Far2 * 0.2
+        # rule1Turn = Far2 * 0
+
+        # rule2Move = Near2 * 0.1
+        # rule2Turn = Near2 * 0
+
+        # rule3Move = Near2 * 0.0
+        # rule3Turn = Near2 * -0.2
+
+        # rule4Move = Far2 * 0.0
+        # rule4Turn = Far2 * 0.2
+
+        rule1Move = Far2 * 0.05
+        rule1Turn = Far2 * 0.05
+
+        rule2Move = Near2 * 0.05
+        rule2Turn = Near2 * -0.05
+
+        rule3Move = Near2 * 0.1
+        rule3Turn = Near2 * 0
+
+        rule4Move = Far2 * 0.2
+        rule4Turn = Far2 * 0
+
+        sum_linearvel = rule1Move + rule2Move +rule3Move + rule4Move
+        sum_angularvel = rule1Turn + rule2Turn + rule3Turn + rule4Turn
+        # print('sum linear = ',sum_linearvel,'sum angular = ',sum_angularvel)
+    elif lidar_degree[90] != 0 and lidar_degree[270] != 0 :
+        if avall[1] >= 0.5 :
+            avall[1] = 0.5
+        if avall[3] >= 0.5 :
+            avall[3] = 0.5
+
+        Far1 = (0.5 - avall[1]) / ( 0.5- 0.0)
+        Near1 = (avall[1] - 0.0) / (0.5 - 0.0)
+        Far2 = (0.5 - avall[3]) / (0.5 -0.0)
+        Near2 = (avall[3] - 0.0) / (0.5 -0.0)
+
+        #default
+        rule1Move = Far1 * Far2 * 0.2
+        rule1Turn = Far1 * Far2 * 0
+
+        rule2Move = Near1 * Near2 * 0.1
+        rule2Turn = Near1 * Near2 * 0
+
+        rule3Move = Far1 * Near2 * 0.0
+        rule3Turn = Far1 * Near2 * -0.5
+
+        rule4Move = Near1 * Far2 * 0.0
+        rule4Turn = Near1 * Far2 * 0.5
+
+        #first change
+        # rule1Move = Near1 * Far2 * 0.1
+        # rule1Turn = Near1 * Far2 * 0.4
+
+        # rule2Move = Far1 * Near2 * 0.1
+        # rule2Turn = Far1 * Near2 * -0.4
+
+        # rule3Move = Near1 * Near2 * 0.1
+        # rule3Turn = Near1 * Near2 * 0
+
+        # rule4Move = Far1 * Far2 * 0.2
+        # rule4Turn = Far1 * Far2 * 0
+
+        sum_linearvel = rule1Move + rule2Move +rule3Move + rule4Move
+        sum_angularvel = rule1Turn + rule2Turn + rule3Turn + rule4Turn
+        # print('sum linear = ',sum_linearvel,'sum angular = ',sum_angularvel)
+    else :
+        sum_angularvel = 0.0
+        sum_linearvel = 0.0
+
+    # elif step == 2 :
+    #     linearVelocity,angularVelocity,forcal = TurnTo(180)    
+    # elif step == 3 :
+    #     linearVelocity,angularVelocity = calibrate(180,forcal)
+    # elif step == 4 :
+    #     linearVelocity,angularVelocity = GTNN(1)
+
+    
+    linearVelocity,angularVelocity,end = GoHome(20)
+
+
+    # linearVelocity,angularVelocity = GTNN(50)
+
+    if end == True :
+        angularVelocity = 0.0
+        linearVelocity = 0.0
+        print('True end')
+
+
+    # angularVelocity = sum_angularvel
+    # linearVelocity = sum_linearvel
+    # angularVelocity = 0.00 #rad/s
+    return linearVelocity,angularVelocity
+    
+
+def robotStop():
+    node = rclpy.create_node('tb3Stop')
+    publisher = node.create_publisher(Twist, 'cmd_vel', 1)
+    msg = Twist()
+    msg.linear.x = 0.0
+    msg.angular.z = 0.0
+    publisher.publish(msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    tb3ControllerNode = Turtlebot3Controller()
+    print('tb3ControllerNode created')
+    try:
+        #Spin the node in the same thread if only callbacks are used 
+        rclpy.spin(tb3ControllerNode)
+
+
+       #TODO: find method to spin the node asychronously, so that linear non-looped task can be programmed.
+    except KeyboardInterrupt:
+       pass
+    tb3ControllerNode.publishVelocityCommand(0.0,0.0)
+    tb3ControllerNode.destroy_node()
+    robotStop()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+
